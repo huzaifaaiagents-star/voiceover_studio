@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voiceover Studio — OpenAI TTS</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f0f0f;
+    color: #e0e0e0;
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px;
+    min-height: 100vh;
+  }
+  .container {
+    width: 100%;
+    max-width: 700px;
+  }
+  h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #fff;
+  }
+  .subtitle {
+    color: #888;
+    font-size: 14px;
+    margin-bottom: 28px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #aaa;
+    margin-bottom: 6px;
+  }
+  textarea {
+    width: 100%;
+    min-height: 200px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    color: #e0e0e0;
+    padding: 14px;
+    font-size: 15px;
+    font-family: inherit;
+    resize: vertical;
+    line-height: 1.6;
+  }
+  textarea:focus { outline: none; border-color: #10a37f; }
+  textarea::placeholder { color: #555; }
+  .row {
+    display: flex;
+    gap: 12px;
+    margin: 16px 0;
+    flex-wrap: wrap;
+  }
+  .row > * { flex: 1; min-width: 140px; }
+  select, input[type="text"] {
+    width: 100%;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    color: #e0e0e0;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  select:focus, input:focus { outline: none; border-color: #10a37f; }
+  .voice-desc {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+  }
+  .api-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .api-row input { flex: 1; }
+  .btn {
+    background: #10a37f;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: #0e8c6b; }
+  .btn:disabled {
+    background: #2a2a2a;
+    color: #555;
+    cursor: not-allowed;
+  }
+  .btn-secondary {
+    background: #2a2a2a;
+    color: #ccc;
+  }
+  .btn-secondary:hover { background: #3a3a3a; }
+  .generate-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .status {
+    font-size: 13px;
+    color: #888;
+    margin-top: 12px;
+    min-height: 20px;
+  }
+  .status.error { color: #f44336; }
+  .status.success { color: #10a37f; }
+  .result-card {
+    display: none;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 18px;
+    margin-top: 16px;
+  }
+  .result-card.visible { display: block; }
+  .result-card audio {
+    width: 100%;
+    margin-bottom: 12px;
+  }
+  .result-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .char-count {
+    text-align: right;
+    font-size: 12px;
+    color: #555;
+    margin-top: 6px;
+  }
+  .char-count.over { color: #f44336; }
+  @media (max-width: 500px) {
+    body { padding: 20px 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Voiceover Studio</h1>
+  <p class="subtitle">OpenAI TTS — natural, emotional speech generation</p>
+
+  <div class="api-row">
+    <input type="text" id="apiKey" placeholder="sk-..." autocomplete="off">
+    <button class="btn btn-secondary" id="saveKeyBtn">Save</button>
+  </div>
+
+  <label for="script">Script</label>
+  <textarea id="script" placeholder="Paste your script here..."></textarea>
+  <div class="char-count" id="charCount">0 characters</div>
+
+  <div class="row">
+    <div>
+      <label for="voice">Voice</label>
+      <select id="voice">
+        <option value="alloy">alloy — warm, versatile</option>
+        <option value="echo">echo — deep, authoritative</option>
+        <option value="fable">fable — expressive, storytelling</option>
+        <option value="nova">nova — bright, energetic</option>
+        <option value="onyx">onyx — deep, commanding</option>
+        <option value="shimmer" selected>shimmer — calm, expressive</option>
+      </select>
+    </div>
+    <div>
+      <label for="speed">Speed</label>
+      <select id="speed">
+        <option value="0.8">Slow (0.8×)</option>
+        <option value="0.9">Relaxed (0.9×)</option>
+        <option value="1.0" selected>Normal (1.0×)</option>
+        <option value="1.1">Brisk (1.1×)</option>
+        <option value="1.2">Fast (1.2×)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="voice-desc" id="voiceDesc">
+    shimmer: Calm, warm, and expressive — great for narrative and storytelling.
+  </div>
+
+  <div class="generate-row">
+    <button class="btn" id="generateBtn">Generate Voiceover</button>
+    <span class="status" id="status">Ready</span>
+  </div>
+
+  <div class="result-card" id="resultCard">
+    <audio id="audioPlayer" controls></audio>
+    <div class="result-actions">
+      <button class="btn btn-secondary" id="downloadBtn">Download MP3</button>
+      <button class="btn btn-secondary" id="clearBtn">Clear</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const VOICE_DESCS = {
+  alloy:  'Alloy: A versatile, neutral voice — warm and balanced. Good all-rounder.',
+  echo:   'Echo: Deep, resonant, and authoritative. Suits narration, dramatic reads.',
+  fable:  'Fable: Expressive, bright, and storytelling-focused. Great for character reads.',
+  nova:   'Nova: Bright, energetic, and clear. Works well for upbeat or instructional content.',
+  onyx:   'Onyx: Deep, commanding, confident. Fits bold narration and serious topics.',
+  shimmer:'Shimmer: Calm, warm, and deeply expressive. Excellent for emotional narrative.'
+};
+
+const apiInput = document.getElementById('apiKey');
+const saveBtn = document.getElementById('saveKeyBtn');
+const script  = document.getElementById('script');
+const voice   = document.getElementById('voice');
+const speed   = document.getElementById('speed');
+const genBtn  = document.getElementById('generateBtn');
+const status  = document.getElementById('status');
+const result  = document.getElementById('resultCard');
+const audio   = document.getElementById('audioPlayer');
+const dlBtn   = document.getElementById('downloadBtn');
+const clearBtn = document.getElementById('clearBtn');
+const charCount = document.getElementById('charCount');
+const voiceDesc = document.getElementById('voiceDesc');
+const maxChars = 4096;
+
+function getApiKey() {
+  const stored = localStorage.getItem('openai_tts_key');
+  const field  = apiInput.value.trim();
+  return field || stored || '';
+}
+
+function setStatus(msg, type) {
+  status.textContent = msg;
+  status.className = 'status' + (type ? ' ' + type : '');
+}
+
+const savedKey = localStorage.getItem('openai_tts_key');
+if (savedKey) apiInput.value = savedKey;
+
+saveBtn.addEventListener('click', () => {
+  const key = apiInput.value.trim();
+  if (!key) {
+    localStorage.removeItem('openai_tts_key');
+    setStatus('Key cleared from local storage', '');
+    return;
+  }
+  if (!key.startsWith('sk-')) {
+    setStatus('Key should start with sk-', 'error');
+    return;
+  }
+  localStorage.setItem('openai_tts_key', key);
+  setStatus('API key saved locally', 'success');
+});
+
+script.addEventListener('input', () => {
+  const len = script.value.length;
+  charCount.textContent = len + ' / ' + maxChars + ' characters';
+  charCount.className = 'char-count' + (len > maxChars ? ' over' : '');
+});
+
+voice.addEventListener('change', () => {
+  voiceDesc.textContent = VOICE_DESCS[voice.value] || '';
+});
+
+genBtn.addEventListener('click', async () => {
+  const key = getApiKey();
+  if (!key) {
+    setStatus('Enter or save your OpenAI API key first', 'error');
+    return;
+  }
+  const text = script.value.trim();
+  if (!text) {
+    setStatus('Paste a script first', 'error');
+    return;
+  }
+  if (text.length > maxChars) {
+    setStatus('Script exceeds ' + maxChars + ' characters. Shorten it.', 'error');
+    return;
+  }
+
+  genBtn.disabled = true;
+  setStatus('Generating... (this takes a few seconds)', '');
+
+  try {
+    const resp = await fetch('https://api.openai.com/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + key,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'tts-1-hd',
+        voice: voice.value,
+        input: text,
+        speed: parseFloat(speed.value),
+        instructions: 'Speak naturally with emotional expression. Vary tone, pace, and emphasis to match the meaning of the text. Sound like a real human reading with feeling, not a robotic narrator.'
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.text();
+      let msg = 'API error ' + resp.status;
+      try { const j = JSON.parse(err); msg = j.error?.message || msg; } catch {}
+      throw new Error(msg);
+    }
+
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+
+    audio.src = url;
+    result.classList.add('visible');
+    setStatus('Done! Play or download below.', 'success');
+
+    dlBtn.onclick = () => {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'voiceover-' + voice.value + '.mp3';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    };
+
+  } catch (err) {
+    setStatus('Error: ' + err.message, 'error');
+  } finally {
+    genBtn.disabled = false;
+  }
+});
+
+clearBtn.addEventListener('click', () => {
+  audio.src = '';
+  result.classList.remove('visible');
+  setStatus('Ready', '');
+});
+
+voice.dispatchEvent(new Event('change'));
+</script>
+</body>
+</html>
