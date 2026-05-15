@@ -15,7 +15,7 @@ way to get started and see the tool in action.
 
 ## 🚀 Live Demo
 Try it here (no install needed):
-👉 https://yourusername.github.io/voiceover-studio/tts-tool.html
+👉 https://huzaifaaiagents-star.github.io/voiceover-studio/tts-tool.html
 
 ---
 
